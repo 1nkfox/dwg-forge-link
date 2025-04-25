@@ -16,6 +16,8 @@ export interface UploadedFile {
   convertedFormat?: string;
   isConverting: boolean;
   isSecurityChecked: boolean;
+  originalFile?: File;  // Add this property for storing the original File object
+  isContour?: boolean;  // Add this property to identify contour files
 }
 
 interface FileListProps {
