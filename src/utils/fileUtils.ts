@@ -1,9 +1,24 @@
 
 /**
+ * Checks if the file is a valid CAD file by extension (DWG or DXF)
+ */
+export const isValidCadFile = (file: File): boolean => {
+  const fileName = file.name.toLowerCase();
+  return fileName.endsWith('.dwg') || fileName.endsWith('.dxf');
+};
+
+/**
  * Checks if the file is a DWG file by extension
  */
 export const isDwgFile = (file: File): boolean => {
   return file.name.toLowerCase().endsWith('.dwg');
+};
+
+/**
+ * Checks if the file is a DXF file by extension
+ */
+export const isDxfFile = (file: File): boolean => {
+  return file.name.toLowerCase().endsWith('.dxf');
 };
 
 /**
@@ -58,4 +73,24 @@ export const simulateFileConversion = (fileId: string, format: string): Promise<
       resolve(`/api/converted/${fileId}.${format}`);
     }, 2000);
   });
+};
+
+/**
+ * Process file contour using the Python backend API
+ */
+export const processFileContour = async (file: File): Promise<Blob> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch('/api/contour', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to process contour');
+  }
+  
+  return await response.blob();
 };

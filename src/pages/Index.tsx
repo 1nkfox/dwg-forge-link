@@ -7,13 +7,15 @@ import { toast } from "sonner";
 import { 
   generateUniqueId, 
   performSecurityCheck, 
-  simulateFileConversion 
+  simulateFileConversion,
+  processFileContour
 } from "@/utils/fileUtils";
 
 const Index = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isProcessingContour, setIsProcessingContour] = useState(false);
   
   const handleFileAccepted = async (file: File) => {
     setIsUploading(true);
@@ -46,6 +48,7 @@ const Index = () => {
         originalUrl: URL.createObjectURL(file),
         isConverting: false,
         isSecurityChecked: false,
+        originalFile: file, // Store the file object for contour processing
       };
       
       setUploadedFiles(prev => [newFile, ...prev]);
@@ -81,7 +84,7 @@ const Index = () => {
     const url = isOriginal ? file.originalUrl : file.convertedUrl;
     const fileName = isOriginal 
       ? file.name 
-      : file.name.replace('.dwg', `.${file.convertedFormat}`);
+      : file.name.replace(/\.(dwg|dxf)$/i, `.${file.convertedFormat}`);
       
     if (url) {
       const a = document.createElement('a');
@@ -137,17 +140,69 @@ const Index = () => {
     }
   };
   
+  const handleGenerateContour = async () => {
+    // Find the first file that has passed security check
+    const fileToProcess = uploadedFiles.find(file => 
+      file.isSecurityChecked && file.originalFile
+    );
+    
+    if (!fileToProcess || !fileToProcess.originalFile) {
+      toast.error("No valid files to process.");
+      return;
+    }
+    
+    setIsProcessingContour(true);
+    
+    try {
+      toast.info(`Processing contour for ${fileToProcess.name}...`);
+      
+      // Process the file contour using the Python backend
+      const contourBlob = await processFileContour(fileToProcess.originalFile);
+      const contourUrl = URL.createObjectURL(contourBlob);
+      
+      // Generate a new file name for the contour
+      const baseName = fileToProcess.name.replace(/\.(dwg|dxf)$/i, '');
+      const contourName = `${baseName}_contour.dwg`;
+      
+      // Add the contour file to the file list
+      const contourFileId = generateUniqueId();
+      const contourFile: UploadedFile = {
+        id: contourFileId,
+        name: contourName,
+        size: contourBlob.size,
+        originalUrl: contourUrl,
+        isConverting: false,
+        isSecurityChecked: true,
+        isContour: true,
+      };
+      
+      setUploadedFiles(prev => [contourFile, ...prev]);
+      
+      toast.success(`Contour generated successfully!`);
+    } catch (error) {
+      console.error('Contour processing error:', error);
+      toast.error("Contour processing failed. Please try again.");
+    } finally {
+      setIsProcessingContour(false);
+    }
+  };
+  
   // Determine if conversion should be disabled
   const disableConversion = !uploadedFiles.some(file => 
     !file.convertedUrl && file.isSecurityChecked
   );
   
+  // Determine if contour processing should be disabled
+  const disableContour = isProcessingContour || !uploadedFiles.some(file => 
+    file.isSecurityChecked && file.originalFile
+  );
+  
   return (
-    <div className="app-container">
-      <div className="app-header">
-        <h1 className="app-logo">DWG Forge Link</h1>
-        <p className="app-description">
-          Upload, convert, and manage your CAD files securely with our DWG processing service
+    <div className="app-container container mx-auto px-4 py-8 max-w-5xl">
+      <div className="app-header text-center mb-8">
+        <h1 className="app-logo text-3xl font-bold text-primary mb-2">DWG Forge Link</h1>
+        <p className="app-description text-muted-foreground">
+          Upload, convert, and extract contours from your CAD files securely
         </p>
       </div>
       
@@ -164,7 +219,9 @@ const Index = () => {
           <div className="my-8">
             <ConversionOptions 
               onRequestConversion={handleRequestConversion}
+              onGenerateContour={handleGenerateContour}
               disableConversion={disableConversion}
+              disableContour={disableContour}
             />
           </div>
           

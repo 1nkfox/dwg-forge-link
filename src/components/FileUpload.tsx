@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Upload, File, X } from "lucide-react";
 import { toast } from "sonner";
-import { isDwgFile, isValidFileSize } from "@/utils/fileUtils";
+import { isValidCadFile, isValidFileSize } from "@/utils/fileUtils";
 
 interface FileUploadProps {
   onFileAccepted: (file: File) => void;
@@ -37,8 +37,8 @@ const FileUpload = ({ onFileAccepted, isUploading, uploadProgress }: FileUploadP
   const validateAndProcessFile = (file: File) => {
     if (!file) return;
     
-    if (!isDwgFile(file)) {
-      toast.error("Invalid file type. Please upload a .dwg file.");
+    if (!isValidCadFile(file)) {
+      toast.error("Invalid file type. Please upload a .dwg or .dxf file.");
       return;
     }
     
@@ -77,7 +77,7 @@ const FileUpload = ({ onFileAccepted, isUploading, uploadProgress }: FileUploadP
   return (
     <Card className="p-6">
       <div
-        className={`file-drop-area ${isDragging ? 'drag-active' : ''}`}
+        className={`file-drop-area ${isDragging ? 'drag-active' : ''} border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -93,22 +93,22 @@ const FileUpload = ({ onFileAccepted, isUploading, uploadProgress }: FileUploadP
         ) : (
           <>
             <Upload className="mx-auto h-12 w-12 text-primary mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Drag & Drop your DWG file here</h3>
+            <h3 className="text-lg font-semibold mb-2">Drag & Drop your CAD file here</h3>
             <p className="text-muted-foreground mb-4">Or click to browse your files</p>
-            <Button type="button">Select DWG File</Button>
+            <Button type="button">Select CAD File</Button>
           </>
         )}
       </div>
       <input
         ref={fileInputRef}
         type="file"
-        accept=".dwg"
+        accept=".dwg,.dxf"
         onChange={handleFileInput}
         className="hidden"
       />
       {!isUploading && (
         <div className="mt-4 text-sm text-muted-foreground text-center">
-          <p>Only .dwg files are accepted (max 50MB)</p>
+          <p>Only .dwg and .dxf files are accepted (max 50MB)</p>
         </div>
       )}
     </Card>
