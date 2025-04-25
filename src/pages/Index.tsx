@@ -6,8 +6,7 @@ import ConversionOptions from "@/components/ConversionOptions";
 import { toast } from "sonner";
 import { 
   generateUniqueId, 
-  performSecurityCheck, 
-  simulateFileConversion,
+  performSecurityCheck,
   processFileContour
 } from "@/utils/fileUtils";
 
@@ -20,7 +19,6 @@ const Index = () => {
   const handleFileAccepted = async (file: File) => {
     setIsUploading(true);
     
-    // Simulate upload progress
     const progressInterval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 95) {
@@ -32,30 +30,25 @@ const Index = () => {
     }, 200);
     
     try {
-      // Simulate network upload delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Complete the upload
       clearInterval(progressInterval);
       setUploadProgress(100);
       
-      // Create the uploaded file object
       const fileId = generateUniqueId();
       const newFile: UploadedFile = {
         id: fileId,
         name: file.name,
         size: file.size,
         originalUrl: URL.createObjectURL(file),
-        isConverting: false,
         isSecurityChecked: false,
-        originalFile: file, // Store the file object for contour processing
+        originalFile: file,
       };
       
       setUploadedFiles(prev => [newFile, ...prev]);
       
       toast.success("File uploaded successfully!");
       
-      // Perform security check in background
       performSecurityCheck(file).then(isSecure => {
         if (isSecure) {
           setUploadedFiles(prev => 
@@ -80,68 +73,20 @@ const Index = () => {
     toast.success("File deleted successfully!");
   };
   
-  const handleDownloadFile = (file: UploadedFile, isOriginal: boolean) => {
-    const url = isOriginal ? file.originalUrl : file.convertedUrl;
-    const fileName = isOriginal 
-      ? file.name 
-      : file.name.replace(/\.(dwg|dxf)$/i, `.${file.convertedFormat}`);
-      
-    if (url) {
+  const handleDownloadFile = (file: UploadedFile) => {
+    if (file.originalUrl) {
       const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
+      a.href = file.originalUrl;
+      a.download = file.name;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       
-      toast.success(`Downloading ${fileName}...`);
-    }
-  };
-  
-  const handleRequestConversion = async (format: string) => {
-    // Find the first unconverted file that has passed security check
-    const fileToConvert = uploadedFiles.find(file => 
-      !file.convertedUrl && file.isSecurityChecked
-    );
-    
-    if (!fileToConvert) {
-      toast.error("No valid files to convert.");
-      return;
-    }
-    
-    // Mark the file as converting
-    setUploadedFiles(prev => 
-      prev.map(f => f.id === fileToConvert.id ? { ...f, isConverting: true } : f)
-    );
-    
-    try {
-      toast.info(`Converting ${fileToConvert.name} to ${format.toUpperCase()}...`);
-      
-      // Simulate conversion process
-      const convertedUrl = await simulateFileConversion(fileToConvert.id, format);
-      
-      // Update the file with conversion result
-      setUploadedFiles(prev => 
-        prev.map(f => 
-          f.id === fileToConvert.id 
-            ? { ...f, convertedUrl, convertedFormat: format, isConverting: false } 
-            : f
-        )
-      );
-      
-      toast.success(`File converted to ${format.toUpperCase()} successfully!`);
-    } catch (error) {
-      toast.error("Conversion failed. Please try again.");
-      
-      // Reset converting state
-      setUploadedFiles(prev => 
-        prev.map(f => f.id === fileToConvert.id ? { ...f, isConverting: false } : f)
-      );
+      toast.success(`Downloading ${file.name}...`);
     }
   };
   
   const handleGenerateContour = async () => {
-    // Find the first file that has passed security check
     const fileToProcess = uploadedFiles.find(file => 
       file.isSecurityChecked && file.originalFile
     );
@@ -156,22 +101,18 @@ const Index = () => {
     try {
       toast.info(`Processing contour for ${fileToProcess.name}...`);
       
-      // Process the file contour using the Python backend
       const contourBlob = await processFileContour(fileToProcess.originalFile);
       const contourUrl = URL.createObjectURL(contourBlob);
       
-      // Generate a new file name for the contour
       const baseName = fileToProcess.name.replace(/\.(dwg|dxf)$/i, '');
       const contourName = `${baseName}_contour.dwg`;
       
-      // Add the contour file to the file list
       const contourFileId = generateUniqueId();
       const contourFile: UploadedFile = {
         id: contourFileId,
         name: contourName,
         size: contourBlob.size,
         originalUrl: contourUrl,
-        isConverting: false,
         isSecurityChecked: true,
         isContour: true,
       };
@@ -187,12 +128,6 @@ const Index = () => {
     }
   };
   
-  // Determine if conversion should be disabled
-  const disableConversion = !uploadedFiles.some(file => 
-    !file.convertedUrl && file.isSecurityChecked
-  );
-  
-  // Determine if contour processing should be disabled
   const disableContour = isProcessingContour || !uploadedFiles.some(file => 
     file.isSecurityChecked && file.originalFile
   );
@@ -202,7 +137,7 @@ const Index = () => {
       <div className="app-header text-center mb-8">
         <h1 className="app-logo text-3xl font-bold text-primary mb-2">DWG Forge Link</h1>
         <p className="app-description text-muted-foreground">
-          Upload, convert, and extract contours from your CAD files securely
+          Upload and extract contours from your CAD files securely
         </p>
       </div>
       
@@ -218,9 +153,7 @@ const Index = () => {
         <>
           <div className="my-8">
             <ConversionOptions 
-              onRequestConversion={handleRequestConversion}
               onGenerateContour={handleGenerateContour}
-              disableConversion={disableConversion}
               disableContour={disableContour}
             />
           </div>
